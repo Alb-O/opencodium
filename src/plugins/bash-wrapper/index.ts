@@ -25,11 +25,11 @@ export interface TemplateRule {
  *   "template": "docker exec -it mycontainer ${command}"
  * }
  *
- * Conditional config with fallback chain:
+ * Conditional config with fallback chain (e.g., nix develop with fallback):
  * {
  *   "templates": [
  *     {
- *       "template": "nix develop -c bash -c \"${command:quoted}\"",
+ *       "template": "nix develop --quiet -c bash -c \"${command:quoted}\"",
  *       "when": { "file": "flake.nix", "command": "nix" }
  *     },
  *     {
@@ -37,6 +37,9 @@ export interface TemplateRule {
  *     }
  *   ]
  * }
+ *
+ * Note: Use --quiet with nix develop to suppress nix output and only show
+ * the wrapped command's output. Shell hooks may still produce output.
  *
  * Condition types:
  *   - file: Check if file exists relative to project root

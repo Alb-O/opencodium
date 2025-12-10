@@ -25,16 +25,16 @@ describe("ignorefile", () => {
 
   describe("getIgnoreFilePath", () => {
     it("should return correct path", () => {
-      expect(getIgnoreFilePath("/foo/bar")).toBe("/foo/bar/.ignore");
+      expect(getIgnoreFilePath("/foo/bar")).toBe("/foo/bar/.rgignore");
     });
   });
 
   describe("addIgnoreSection", () => {
-    it("should create .ignore file with negation pattern", async () => {
+    it("should create .rgignore file with negation pattern", async () => {
       await addIgnoreSection(tempDir);
 
       const content = await fs.readFile(
-        path.join(tempDir, ".ignore"),
+        path.join(tempDir, ".rgignore"),
         "utf-8"
       );
 
@@ -43,12 +43,12 @@ describe("ignorefile", () => {
     });
 
     it("should preserve existing user content", async () => {
-      await fs.writeFile(path.join(tempDir, ".ignore"), "*.log\nnode_modules/\n");
+      await fs.writeFile(path.join(tempDir, ".rgignore"), "*.log\nnode_modules/\n");
 
       await addIgnoreSection(tempDir);
 
       const content = await fs.readFile(
-        path.join(tempDir, ".ignore"),
+        path.join(tempDir, ".rgignore"),
         "utf-8"
       );
 
@@ -62,7 +62,7 @@ describe("ignorefile", () => {
       await addIgnoreSection(tempDir);
 
       const content = await fs.readFile(
-        path.join(tempDir, ".ignore"),
+        path.join(tempDir, ".rgignore"),
         "utf-8"
       );
 
@@ -91,13 +91,13 @@ describe("ignorefile", () => {
     });
 
     it("should preserve user content when removing section", async () => {
-      await fs.writeFile(path.join(tempDir, ".ignore"), "*.log\nnode_modules/\n");
+      await fs.writeFile(path.join(tempDir, ".rgignore"), "*.log\nnode_modules/\n");
       await addIgnoreSection(tempDir);
 
       await removeIgnoreSection(tempDir);
 
       const content = await fs.readFile(
-        path.join(tempDir, ".ignore"),
+        path.join(tempDir, ".rgignore"),
         "utf-8"
       );
 
@@ -107,17 +107,17 @@ describe("ignorefile", () => {
       expect(content).not.toContain(SYM_DIR_NAME);
     });
 
-    it("should not throw if .ignore doesn't exist", async () => {
+    it("should not throw if .rgignore doesn't exist", async () => {
       await expect(removeIgnoreSection(tempDir)).resolves.toBeUndefined();
     });
 
     it("should not throw if section doesn't exist", async () => {
-      await fs.writeFile(path.join(tempDir, ".ignore"), "*.log\n");
+      await fs.writeFile(path.join(tempDir, ".rgignore"), "*.log\n");
 
       await expect(removeIgnoreSection(tempDir)).resolves.toBeUndefined();
 
       const content = await fs.readFile(
-        path.join(tempDir, ".ignore"),
+        path.join(tempDir, ".rgignore"),
         "utf-8"
       );
       expect(content).toContain("*.log");
@@ -125,11 +125,11 @@ describe("ignorefile", () => {
   });
 
   describe("ignoreFileExists", () => {
-    it("should return false if .ignore doesn't exist", async () => {
+    it("should return false if .rgignore doesn't exist", async () => {
       expect(await ignoreFileExists(tempDir)).toBe(false);
     });
 
-    it("should return true if .ignore exists", async () => {
+    it("should return true if .rgignore exists", async () => {
       await addIgnoreSection(tempDir);
 
       expect(await ignoreFileExists(tempDir)).toBe(true);
@@ -137,12 +137,12 @@ describe("ignorefile", () => {
   });
 
   describe("hasIgnoreSection", () => {
-    it("should return false if .ignore doesn't exist", async () => {
+    it("should return false if .rgignore doesn't exist", async () => {
       expect(await hasIgnoreSection(tempDir)).toBe(false);
     });
 
-    it("should return false if .ignore exists but has no section", async () => {
-      await fs.writeFile(path.join(tempDir, ".ignore"), "*.log\n");
+    it("should return false if .rgignore exists but has no section", async () => {
+      await fs.writeFile(path.join(tempDir, ".rgignore"), "*.log\n");
 
       expect(await hasIgnoreSection(tempDir)).toBe(false);
     });

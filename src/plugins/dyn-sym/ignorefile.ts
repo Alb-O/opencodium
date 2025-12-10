@@ -3,19 +3,21 @@ import path from "node:path";
 
 import { SYM_DIR_NAME } from "./symdir";
 
-const IGNORE_FILE_NAME = ".ignore";
+const IGNORE_FILE_NAME = ".rgignore";
 const MARKER_START = "# dyn-sym plugin (DO NOT EDIT)";
 const MARKER_END = "# end dyn-sym";
 
 /**
- * Get the path to the .ignore file in the worktree root.
+ * Get the path to the .rgignore file in the worktree root.
+ * We use .rgignore instead of .ignore because it has higher precedence
+ * in ripgrep's ignore file hierarchy.
  */
 export function getIgnoreFilePath(worktreeRoot: string): string {
   return path.join(worktreeRoot, IGNORE_FILE_NAME);
 }
 
 /**
- * Read the current .ignore file content.
+ * Read the current .rgignore file content.
  */
 async function readIgnoreFile(ignorePath: string): Promise<string> {
   try {
@@ -82,7 +84,7 @@ function removeManagedSection(content: string): string {
 }
 
 /**
- * Add our managed section to the .ignore file.
+ * Add our managed section to the .rgignore file.
  * Preserves any existing user content.
  */
 export async function addIgnoreSection(worktreeRoot: string): Promise<void> {
@@ -99,7 +101,7 @@ export async function addIgnoreSection(worktreeRoot: string): Promise<void> {
 }
 
 /**
- * Remove our managed section from the .ignore file.
+ * Remove our managed section from the .rgignore file.
  * Preserves any existing user content.
  * Deletes the file entirely if it becomes empty.
  */
@@ -132,7 +134,7 @@ export async function removeIgnoreSection(worktreeRoot: string): Promise<void> {
 }
 
 /**
- * Check if the .ignore file exists.
+ * Check if the .rgignore file exists.
  */
 export async function ignoreFileExists(worktreeRoot: string): Promise<boolean> {
   const ignorePath = getIgnoreFilePath(worktreeRoot);
@@ -145,7 +147,7 @@ export async function ignoreFileExists(worktreeRoot: string): Promise<boolean> {
 }
 
 /**
- * Check if our managed section is present in the .ignore file.
+ * Check if our managed section is present in the .rgignore file.
  */
 export async function hasIgnoreSection(worktreeRoot: string): Promise<boolean> {
   const ignorePath = getIgnoreFilePath(worktreeRoot);

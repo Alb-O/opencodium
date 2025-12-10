@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin";
-import { loadConfig } from "../../lib/config";
+import { loadConfig } from "@oc-plugins/shared";
 import { setupWorktree, getWorktreeContext } from "./worktree";
 import { wrapToolArgs, shouldWrapTool } from "./wrapper";
 import { isGitRepo } from "./git";
@@ -13,10 +13,6 @@ export { isGitRepo, getGitRoot, ensureBranchExists, worktreeAdd, worktreeRemove,
 export { type AutoWorktreeConfig, defaultConfig } from "./config";
 
 const CONFIG_FILE = "auto-worktree.json";
-
-interface PluginContext {
-  sessionID: string;
-}
 
 /**
  * Auto-Worktree Plugin
@@ -54,16 +50,15 @@ export const AutoWorktreePlugin: Plugin = async (input) => {
 
   return {
     "tool.execute.before": async (
-      details: { tool: string; callID: string },
+      details: { tool: string; sessionID: string; callID: string },
       state: { args: Record<string, unknown> },
-      context: PluginContext,
     ) => {
-      if (!context?.sessionID) return;
+      if (!details?.sessionID) return;
       if (!shouldWrapTool(details.tool)) return;
 
       // Set up worktree on first tool call (lazy initialization)
       if (!worktreeSetupPromise) {
-        worktreeSetupPromise = setupWorktree(context.sessionID, input.directory, config)
+        worktreeSetupPromise = setupWorktree(details.sessionID, input.directory, config)
           .then(() => undefined)
           .catch((err) => {
             console.error("[auto-worktree] Failed to setup worktree:", err);
@@ -75,7 +70,7 @@ export const AutoWorktreePlugin: Plugin = async (input) => {
 
       // Wrap tool arguments to redirect to worktree
       wrapToolArgs({
-        sessionID: context.sessionID,
+        sessionID: details.sessionID,
         tool: details.tool,
         args: state.args,
         rootDirectory: input.directory,

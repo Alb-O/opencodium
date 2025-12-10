@@ -1,0 +1,42 @@
+{
+  "name": "@oc-plugins/dyn-sym",
+  "version": "0.1.0",
+  "description": "OpenCode plugin that makes external directories visible via symlinks",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target node && bun run build:types",
+    "build:types": "tsc --emitDeclarationOnly --declaration --outDir ./dist",
+    "test": "bun test ./src --timeout 120000",
+    "prepublishOnly": "bun run build"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.0"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.0",
+    "@types/bun": "^1.3.4",
+    "typescript": "^5"
+  },
+  "keywords": ["opencode", "plugin", "symlink", "directory"],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/oc-plugins",
+    "directory": "packages/dyn-sym"
+  }
+}

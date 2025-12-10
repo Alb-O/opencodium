@@ -15,7 +15,7 @@ export interface WorktreeInfo {
  * Create a simple-git instance for a directory.
  */
 function git(cwd?: string): SimpleGit {
-  return simpleGit(cwd ? { baseDir: cwd } : undefined);
+  return cwd ? simpleGit({ baseDir: cwd }) : simpleGit();
 }
 
 /**

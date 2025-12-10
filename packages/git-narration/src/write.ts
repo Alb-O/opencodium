@@ -1,4 +1,4 @@
-import { tool } from "@opencode-ai/plugin";
+import { tool, type ToolDefinition } from "@opencode-ai/plugin";
 import path from "path";
 import { mkdir } from "fs/promises";
 import { commitFile, getGitRoot } from "./git";
@@ -9,7 +9,7 @@ import type { GitNarrationConfig } from "./config";
  * Create wrapped write tool that commits after each write.
  * Falls back to writing without commit based on config.
  */
-export function createWriteTool(config: GitNarrationConfig) {
+export function createWriteTool(config: GitNarrationConfig): ToolDefinition {
   return tool({
     description: "Create or overwrite a file and commit",
     args: {
@@ -76,4 +76,4 @@ export function createWriteTool(config: GitNarrationConfig) {
 }
 
 // Default export for backwards compatibility
-export const writeTool = createWriteTool({});
+export const writeTool: ToolDefinition = createWriteTool({});

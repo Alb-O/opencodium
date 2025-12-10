@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin";
-import { loadConfig } from "../../lib/config";
+import { loadConfig } from "@oc-plugins/shared";
 import { createEditTool } from "./edit";
 import { createWriteTool } from "./write";
 import { takeNote } from "./notes";

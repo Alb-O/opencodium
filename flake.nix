@@ -45,6 +45,7 @@
         default = pkgsFor.${system}.mkShell {
           packages = with pkgsFor.${system}; [
             bun
+            nodejs
             bun2nix.packages.${system}.default
           ];
 

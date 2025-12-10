@@ -1,4 +1,4 @@
-import { tool } from "@opencode-ai/plugin";
+import { tool, type ToolDefinition } from "@opencode-ai/plugin";
 import path from "path";
 import { mkdir } from "fs/promises";
 import { createTwoFilesPatch } from "diff";
@@ -10,7 +10,7 @@ import type { GitNarrationConfig } from "./config";
  * Create wrapped edit tool that commits after each edit.
  * Falls back to editing without commit based on config.
  */
-export function createEditTool(config: GitNarrationConfig) {
+export function createEditTool(config: GitNarrationConfig): ToolDefinition {
   return tool({
     description: "Apply exact string replacement edits to a file and commit",
     args: {
@@ -147,4 +147,4 @@ function dedentDiff(raw: string): string {
 }
 
 // Default export for backwards compatibility
-export const editTool = createEditTool({});
+export const editTool: ToolDefinition = createEditTool({});

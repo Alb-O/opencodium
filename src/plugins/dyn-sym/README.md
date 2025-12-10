@@ -6,9 +6,8 @@ Enables OpenCode to discover and search files in external directories by creatin
 
 1. **On plugin initialization**, creates a `.sym` directory in your project's worktree root
 2. **Adds `.sym/` to local git exclude** (`.git/info/exclude`) - keeps `git status` clean
-3. **Before ripgrep-based tools run** (`read`, `grep`, `glob`, `list`), creates a temporary `.ignore` file with `!/.sym/` negation pattern
-4. **After those tools complete**, removes the `.ignore` file to avoid git artifacts
-5. **Symlinks in `.sym/` are followed** by OpenCode's ripgrep (via `--follow` flag)
+3. **Adds a negation pattern to `.ignore`** (`!/.sym/`) - makes `.sym` visible to ripgrep despite the git exclude
+4. **Symlinks in `.sym/` are followed** by OpenCode's ripgrep (via `--follow` flag)
 
 This allows the AI agent to discover, search, and read files in directories outside your project, such as:
 - Shared libraries or SDKs
@@ -16,15 +15,26 @@ This allows the AI agent to discover, search, and read files in directories outs
 - Documentation repos
 - Monorepo sibling packages
 
-## Why the Temporary .ignore File?
+## Why Two Ignore Files?
 
-OpenCode uses ripgrep for file discovery, which respects `.git/info/exclude`. This creates a conflict:
-- We want `.sym` hidden from `git status` (via `.git/info/exclude`)
-- We want `.sym` visible to ripgrep
+OpenCode uses ripgrep for file discovery, which respects both `.git/info/exclude` and `.ignore` files. We use both:
 
-The solution: ripgrep also reads `.ignore` files, and negation patterns (`!pattern`) override exclusions. By temporarily creating `.ignore` with `!/.sym/` during ripgrep tool calls, we get both:
-- Clean `git status` (no `.sym` showing as untracked)
-- Full visibility to the AI agent
+| File | Purpose |
+|------|---------|
+| `.git/info/exclude` | Hide `.sym` from `git status` (local-only, not tracked) |
+| `.ignore` | Override the exclusion with `!/.sym/` negation pattern |
+
+This gives us both:
+- **Clean `git status`** - `.sym` doesn't show as untracked
+- **Full visibility** - ripgrep sees `.sym` contents for tools and `@` mention autocomplete
+
+## Why Add `.ignore` at Init (Not Per-Tool)?
+
+OpenCode caches the file list at startup for the `@` mention autocomplete feature. This cache is built using ripgrep before any tool calls happen. By adding the `.ignore` section at plugin init:
+
+- `.sym` files appear in `@` mention suggestions
+- `.sym` files are discoverable by all tools (read, grep, glob, list)
+- No need for before/after hooks on every tool call
 
 ## Usage
 
@@ -33,7 +43,7 @@ The solution: ripgrep also reads `.ignore` files, and negation patterns (`!patte
 The plugin automatically:
 - Creates `.sym/` if it doesn't exist
 - Configures git to ignore `.sym/` locally
-- Manages `.ignore` file lifecycle during tool calls
+- Adds `.ignore` section for ripgrep visibility
 - Logs existing symlinks on startup
 
 ### Managing Symlinks
@@ -79,21 +89,17 @@ await removeSymlink(worktreeRoot, "custom-name");
 const removed = await clearSymlinks(worktreeRoot);
 ```
 
-## Git Exclusion
+## File Markers
 
-The plugin uses `.git/info/exclude` instead of `.gitignore` because:
-
-1. `.git/info/exclude` is local-only and not tracked
-2. Avoids polluting your project's `.gitignore` with plugin-specific entries
-3. Works automatically without any user intervention
-
-The exclusion is wrapped in markers for easy identification:
+Both `.git/info/exclude` and `.ignore` use markers to identify plugin-managed content:
 
 ```
-# dyn-sym plugin managed entries (DO NOT EDIT)
-/.sym/
-# end dyn-sym plugin managed entries
+# dyn-sym plugin (DO NOT EDIT)
+!/.sym/
+# end dyn-sym
 ```
+
+User content outside these markers is preserved when adding or removing sections.
 
 ## Ripgrep Discovery
 
@@ -113,7 +119,7 @@ Ripgrep also respects:
 - **Target must exist** when adding a symlink
 - **Broken symlinks** are detected but not auto-cleaned
 - **Git worktrees** are supported (`.git` file instead of directory)
-- **Concurrent tool calls** are handled via callID tracking
+- **`.ignore` persists** for the session (no cleanup on exit)
 
 ## Future Enhancements
 

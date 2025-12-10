@@ -2,7 +2,7 @@ import type { Plugin } from "@opencode-ai/plugin";
 
 import { ensureSymDir, symDirExists } from "./symdir";
 import { ensureSymDirExcluded } from "./gitexclude";
-import { addIgnoreSection, removeIgnoreSection } from "./ignorefile";
+import { addIgnoreSection } from "./ignorefile";
 import { listSymlinks, addSymlink, removeSymlink, clearSymlinks } from "./symlinks";
 
 export type { SymlinkEntry } from "./symlinks";
@@ -47,17 +47,6 @@ export interface DynSymConfig {
 }
 
 /**
- * Tools that use ripgrep for file discovery and need .sym visibility.
- */
-const RIPGREP_TOOLS = new Set(["read", "grep", "glob", "list"]);
-
-/**
- * Track active tool calls that have .ignore sections added.
- * Maps callID -> worktree path
- */
-const activeIgnoreSections = new Map<string, string>();
-
-/**
  * Dynamic Symlinks Plugin
  * 
  * Creates a .sym directory in the worktree root that can contain symlinks
@@ -67,9 +56,14 @@ const activeIgnoreSections = new Map<string, string>();
  * Key features:
  * - Creates .sym directory on plugin init
  * - Adds .sym to local git exclude (.git/info/exclude) to keep git status clean
- * - Temporarily creates .ignore file during ripgrep tool calls to make .sym visible
+ * - Adds negation pattern to .ignore file to make .sym visible to ripgrep
  * - Provides API for managing symlinks programmatically
  * - Symlinks are followed by ripgrep's --follow flag
+ * 
+ * The .ignore section is added at plugin init and left in place for the session.
+ * This ensures .sym is visible to:
+ * - All ripgrep-based tools (read, grep, glob, list)
+ * - The @ mention autocomplete file picker (uses cached ripgrep results)
  */
 export const DynSymPlugin: Plugin = async (input) => {
   const { worktree } = input;
@@ -81,6 +75,13 @@ export const DynSymPlugin: Plugin = async (input) => {
   // 2. Ensure .sym is in local git exclude (keeps git status clean)
   await ensureSymDirExcluded(worktree);
   
+  // 3. Add .ignore section with negation pattern to make .sym visible to ripgrep.
+  //    This is done at init (not per-tool-call) because:
+  //    - OpenCode caches the file list at startup for @ mention autocomplete
+  //    - The cache is built using ripgrep before any tool calls happen
+  //    - Leaving the section in place ensures .sym is always discoverable
+  await addIgnoreSection(worktree);
+  
   // Log current symlinks for debugging
   const currentSymlinks = await listSymlinks(worktree);
   if (currentSymlinks.length > 0) {
@@ -91,44 +92,6 @@ export const DynSymPlugin: Plugin = async (input) => {
     }
   }
   
-  return {
-    /**
-     * Before ripgrep-based tools run, add our section to .ignore file
-     * with a negation pattern that makes .sym visible despite git exclude.
-     * Preserves any existing user content in .ignore.
-     */
-    "tool.execute.before": async (
-      details: { tool: string; sessionID: string; callID: string },
-      _state: { args: any },
-    ) => {
-      const toolName = details.tool.toLowerCase();
-      
-      if (!RIPGREP_TOOLS.has(toolName)) {
-        return;
-      }
-      
-      // Add our section to .ignore to make .sym visible to ripgrep
-      await addIgnoreSection(worktree);
-      activeIgnoreSections.set(details.callID, worktree);
-    },
-    
-    /**
-     * After ripgrep-based tools complete, remove our section from .ignore.
-     * Preserves any existing user content in .ignore.
-     */
-    "tool.execute.after": async (
-      details: { tool: string; sessionID: string; callID: string },
-      _result: { title: string; output: string; metadata: any },
-    ) => {
-      const worktreePath = activeIgnoreSections.get(details.callID);
-      
-      if (!worktreePath) {
-        return;
-      }
-      
-      // Remove our section from .ignore (preserves user content)
-      activeIgnoreSections.delete(details.callID);
-      await removeIgnoreSection(worktreePath);
-    },
-  };
+  // No hooks needed - the .ignore section persists for the session
+  return {};
 };

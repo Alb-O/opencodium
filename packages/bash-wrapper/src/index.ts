@@ -1,7 +1,8 @@
 import type { Plugin } from "@opencode-ai/plugin";
-import { loadConfig } from "@opencodium/shared";
+import { loadPluginConfig } from "@opencodium/shared";
 import { applyTemplate } from "./template";
 import { evaluateCondition, type Condition } from "./condition";
+import pkg from "../package.json";
 
 /**
  * A template rule with an optional condition.
@@ -21,8 +22,6 @@ export interface BashWrapperConfig {
   /** Template chain with conditions (first matching wins) */
   templates?: TemplateRule[];
 }
-
-const CONFIG_FILE = "bash-wrapper.json";
 
 /**
  * Select the first template whose condition passes.
@@ -51,7 +50,7 @@ async function selectTemplate(
  * Plugin that wraps all bash commands using a configurable template.
  */
 export const BashWrapperPlugin: Plugin = async (input) => {
-  const config = await loadConfig<BashWrapperConfig>(CONFIG_FILE, input.directory);
+  const config = await loadPluginConfig<BashWrapperConfig>(pkg.name, input.directory);
 
   if (!config) {
     return {};

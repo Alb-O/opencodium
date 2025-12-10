@@ -4,4 +4,4 @@
  * Shared utilities for OpenCode plugins.
  */
 
-export { loadConfig, getGlobalConfigDir } from "./config";
+export { loadConfig, loadPluginConfig, getGlobalConfigDir } from "./config";

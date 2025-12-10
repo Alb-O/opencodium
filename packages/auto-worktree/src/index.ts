@@ -1,9 +1,10 @@
 import type { Plugin } from "@opencode-ai/plugin";
-import { loadConfig } from "@opencodium/shared";
+import { loadPluginConfig } from "@opencodium/shared";
 import { setupWorktree, getWorktreeContext } from "./worktree";
 import { wrapToolArgs, shouldWrapTool } from "./wrapper";
 import { isGitRepo } from "./git";
 import { type AutoWorktreeConfig, defaultConfig } from "./config";
+import pkg from "../package.json";
 
 export { setupWorktree, getWorktreeContext } from "./worktree";
 export { wrapToolArgs, shouldWrapTool } from "./wrapper";
@@ -11,8 +12,6 @@ export { generateIdentity, getWorktreeName, type AgentIdentity } from "./identit
 export { setSessionWorktree, getSessionWorktree, clearSessionWorktree, hasSessionWorktree } from "./session";
 export { isGitRepo, getGitRoot, ensureBranchExists, worktreeAdd, worktreeRemove, listWorktrees, worktreeExists } from "./git";
 export { type AutoWorktreeConfig, defaultConfig } from "./config";
-
-const CONFIG_FILE = "auto-worktree.json";
 
 /**
  * Auto-Worktree Plugin
@@ -35,7 +34,7 @@ const CONFIG_FILE = "auto-worktree.json";
  * - worktreesDir: subdirectory for worktrees (default: "worktrees")
  */
 export const AutoWorktreePlugin: Plugin = async (input) => {
-  const fileConfig = await loadConfig<AutoWorktreeConfig>(CONFIG_FILE, input.directory);
+  const fileConfig = await loadPluginConfig<AutoWorktreeConfig>(pkg.name, input.directory);
   const config: Required<AutoWorktreeConfig> = { ...defaultConfig, ...fileConfig };
 
   // Check if we're in a git repo

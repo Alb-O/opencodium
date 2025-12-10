@@ -33,10 +33,10 @@ async function setupTestDir(): Promise<TestContext> {
   const pluginDir = path.join(configDir, "plugin");
   await fs.mkdir(pluginDir, { recursive: true });
 
-  const projectRoot = path.resolve(import.meta.dir, "../../../../");
+  const packageDir = path.resolve(import.meta.dir, "../../");
   await fs.writeFile(
     path.join(pluginDir, "index.ts"),
-    `export * from "${projectRoot}/src/plugins";`
+    `export { GitNarrationPlugin as default } from "${packageDir}/src/index.ts";`
   );
 
   // Initialize git repo

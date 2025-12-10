@@ -14,9 +14,16 @@ export interface GitNarrationConfig {
    * Default: false
    */
   strictCommit?: boolean;
+
+  /**
+   * Track and commit file changes made by bash commands.
+   * Default: true
+   */
+  trackBash?: boolean;
 }
 
 export const defaultConfig: GitNarrationConfig = {
   lowercaseMessages: true,
   strictCommit: false,
+  trackBash: true,
 };

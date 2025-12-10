@@ -2,7 +2,7 @@ import type { Plugin } from "@opencode-ai/plugin";
 
 import { ensureSymDir, symDirExists } from "./symdir";
 import { ensureSymDirExcluded } from "./gitexclude";
-import { createIgnoreFile, removeIgnoreFile } from "./ignorefile";
+import { addIgnoreSection, removeIgnoreSection } from "./ignorefile";
 import { listSymlinks, addSymlink, removeSymlink, clearSymlinks } from "./symlinks";
 
 export type { SymlinkEntry } from "./symlinks";
@@ -18,9 +18,10 @@ export {
   isGitRepo,
 } from "./gitexclude";
 export {
-  createIgnoreFile,
-  removeIgnoreFile,
+  addIgnoreSection,
+  removeIgnoreSection,
   ignoreFileExists,
+  hasIgnoreSection,
   getIgnoreFilePath,
 } from "./ignorefile";
 export { 
@@ -51,10 +52,10 @@ export interface DynSymConfig {
 const RIPGREP_TOOLS = new Set(["read", "grep", "glob", "list"]);
 
 /**
- * Track active tool calls that have .ignore files created.
+ * Track active tool calls that have .ignore sections added.
  * Maps callID -> worktree path
  */
-const activeIgnoreFiles = new Map<string, string>();
+const activeIgnoreSections = new Map<string, string>();
 
 /**
  * Dynamic Symlinks Plugin
@@ -92,8 +93,9 @@ export const DynSymPlugin: Plugin = async (input) => {
   
   return {
     /**
-     * Before ripgrep-based tools run, create a temporary .ignore file
+     * Before ripgrep-based tools run, add our section to .ignore file
      * with a negation pattern that makes .sym visible despite git exclude.
+     * Preserves any existing user content in .ignore.
      */
     "tool.execute.before": async (
       details: { tool: string; sessionID: string; callID: string },
@@ -105,27 +107,28 @@ export const DynSymPlugin: Plugin = async (input) => {
         return;
       }
       
-      // Create .ignore file to make .sym visible to ripgrep
-      await createIgnoreFile(worktree);
-      activeIgnoreFiles.set(details.callID, worktree);
+      // Add our section to .ignore to make .sym visible to ripgrep
+      await addIgnoreSection(worktree);
+      activeIgnoreSections.set(details.callID, worktree);
     },
     
     /**
-     * After ripgrep-based tools complete, remove the temporary .ignore file.
+     * After ripgrep-based tools complete, remove our section from .ignore.
+     * Preserves any existing user content in .ignore.
      */
     "tool.execute.after": async (
       details: { tool: string; sessionID: string; callID: string },
       _result: { title: string; output: string; metadata: any },
     ) => {
-      const worktreePath = activeIgnoreFiles.get(details.callID);
+      const worktreePath = activeIgnoreSections.get(details.callID);
       
       if (!worktreePath) {
         return;
       }
       
-      // Clean up .ignore file
-      activeIgnoreFiles.delete(details.callID);
-      await removeIgnoreFile(worktreePath);
+      // Remove our section from .ignore (preserves user content)
+      activeIgnoreSections.delete(details.callID);
+      await removeIgnoreSection(worktreePath);
     },
   };
 };

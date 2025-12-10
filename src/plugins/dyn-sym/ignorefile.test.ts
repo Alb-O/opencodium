@@ -5,9 +5,10 @@ import os from "node:os";
 
 import {
   getIgnoreFilePath,
-  createIgnoreFile,
-  removeIgnoreFile,
+  addIgnoreSection,
+  removeIgnoreSection,
   ignoreFileExists,
+  hasIgnoreSection,
 } from "./ignorefile";
 import { SYM_DIR_NAME } from "./symdir";
 
@@ -28,9 +29,9 @@ describe("ignorefile", () => {
     });
   });
 
-  describe("createIgnoreFile", () => {
+  describe("addIgnoreSection", () => {
     it("should create .ignore file with negation pattern", async () => {
-      await createIgnoreFile(tempDir);
+      await addIgnoreSection(tempDir);
 
       const content = await fs.readFile(
         path.join(tempDir, ".ignore"),
@@ -41,33 +42,85 @@ describe("ignorefile", () => {
       expect(content).toContain("dyn-sym plugin");
     });
 
-    it("should overwrite existing .ignore file", async () => {
-      await fs.writeFile(path.join(tempDir, ".ignore"), "old content");
+    it("should preserve existing user content", async () => {
+      await fs.writeFile(path.join(tempDir, ".ignore"), "*.log\nnode_modules/\n");
 
-      await createIgnoreFile(tempDir);
+      await addIgnoreSection(tempDir);
 
       const content = await fs.readFile(
         path.join(tempDir, ".ignore"),
         "utf-8"
       );
 
-      expect(content).not.toContain("old content");
+      expect(content).toContain("*.log");
+      expect(content).toContain("node_modules/");
       expect(content).toContain(`!/${SYM_DIR_NAME}/`);
+    });
+
+    it("should not duplicate section on repeated calls", async () => {
+      await addIgnoreSection(tempDir);
+      await addIgnoreSection(tempDir);
+
+      const content = await fs.readFile(
+        path.join(tempDir, ".ignore"),
+        "utf-8"
+      );
+
+      const matches = content.match(/dyn-sym plugin/g) || [];
+      expect(matches.length).toBe(1);
     });
   });
 
-  describe("removeIgnoreFile", () => {
-    it("should remove .ignore file", async () => {
-      await createIgnoreFile(tempDir);
+  describe("removeIgnoreSection", () => {
+    it("should remove managed section", async () => {
+      await addIgnoreSection(tempDir);
+      expect(await hasIgnoreSection(tempDir)).toBe(true);
+
+      await removeIgnoreSection(tempDir);
+
+      expect(await hasIgnoreSection(tempDir)).toBe(false);
+    });
+
+    it("should delete file if it becomes empty", async () => {
+      await addIgnoreSection(tempDir);
       expect(await ignoreFileExists(tempDir)).toBe(true);
 
-      await removeIgnoreFile(tempDir);
+      await removeIgnoreSection(tempDir);
 
       expect(await ignoreFileExists(tempDir)).toBe(false);
     });
 
+    it("should preserve user content when removing section", async () => {
+      await fs.writeFile(path.join(tempDir, ".ignore"), "*.log\nnode_modules/\n");
+      await addIgnoreSection(tempDir);
+
+      await removeIgnoreSection(tempDir);
+
+      const content = await fs.readFile(
+        path.join(tempDir, ".ignore"),
+        "utf-8"
+      );
+
+      expect(content).toContain("*.log");
+      expect(content).toContain("node_modules/");
+      expect(content).not.toContain("dyn-sym");
+      expect(content).not.toContain(SYM_DIR_NAME);
+    });
+
     it("should not throw if .ignore doesn't exist", async () => {
-      await expect(removeIgnoreFile(tempDir)).resolves.toBeUndefined();
+      await expect(removeIgnoreSection(tempDir)).resolves.toBeUndefined();
+    });
+
+    it("should not throw if section doesn't exist", async () => {
+      await fs.writeFile(path.join(tempDir, ".ignore"), "*.log\n");
+
+      await expect(removeIgnoreSection(tempDir)).resolves.toBeUndefined();
+
+      const content = await fs.readFile(
+        path.join(tempDir, ".ignore"),
+        "utf-8"
+      );
+      expect(content).toContain("*.log");
     });
   });
 
@@ -77,9 +130,27 @@ describe("ignorefile", () => {
     });
 
     it("should return true if .ignore exists", async () => {
-      await createIgnoreFile(tempDir);
+      await addIgnoreSection(tempDir);
 
       expect(await ignoreFileExists(tempDir)).toBe(true);
+    });
+  });
+
+  describe("hasIgnoreSection", () => {
+    it("should return false if .ignore doesn't exist", async () => {
+      expect(await hasIgnoreSection(tempDir)).toBe(false);
+    });
+
+    it("should return false if .ignore exists but has no section", async () => {
+      await fs.writeFile(path.join(tempDir, ".ignore"), "*.log\n");
+
+      expect(await hasIgnoreSection(tempDir)).toBe(false);
+    });
+
+    it("should return true if section exists", async () => {
+      await addIgnoreSection(tempDir);
+
+      expect(await hasIgnoreSection(tempDir)).toBe(true);
     });
   });
 });

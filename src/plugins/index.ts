@@ -7,3 +7,4 @@
 
 export { BashWrapperPlugin } from "./bash-wrapper";
 export { DynSymPlugin } from "./dyn-sym";
+export { GitNarrationPlugin } from "./git-narration";

@@ -1,0 +1,11 @@
+{
+  "templates": [
+    {
+      "template": "nix develop --quiet -c bash -c \"${command:quoted}\"",
+      "when": { "file": "flake.nix", "command": "nix" }
+    },
+    {
+      "template": "${command}"
+    }
+  ]
+}

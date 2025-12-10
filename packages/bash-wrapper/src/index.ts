@@ -80,6 +80,10 @@ export const BashWrapperPlugin: Plugin = async (input) => {
         return;
       }
 
+      // Store original args for display using __display field
+      state.args.__display = { ...state.args };
+
+      // Wrap the command
       state.args.command = applyTemplate(template, command);
     },
   };

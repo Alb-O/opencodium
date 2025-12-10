@@ -19,6 +19,18 @@ const execAsync = promisify(exec);
 const OPENCODE_MODEL = "opencode/big-pickle";
 const TEST_TIMEOUT = 90_000; // 90 seconds for LLM responses
 
+const runAgentSmoke = process.env.RUN_AGENT_SMOKE === "true";
+
+let hasOpencode = false;
+try {
+  await execAsync("which opencode");
+  hasOpencode = true;
+} catch {
+  hasOpencode = false;
+}
+
+const shouldRun = runAgentSmoke && hasOpencode;
+
 interface TestContext {
   testDir: string;
   configDir: string;
@@ -82,7 +94,7 @@ async function getCommitCount(cwd: string): Promise<number> {
   return parseInt(stdout.trim(), 10);
 }
 
-describe("git-narration agent smoke tests", () => {
+describe.skipIf(!shouldRun)("git-narration agent smoke tests", () => {
   let ctx: TestContext;
 
   beforeEach(async () => {

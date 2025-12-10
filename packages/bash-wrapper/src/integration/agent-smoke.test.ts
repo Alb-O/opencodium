@@ -4,14 +4,29 @@
  * 
  * Run separately with: bun test ./src/plugins/bash-wrapper/integration/agent-smoke.test.ts
  */
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect } from "bun:test";
 import { spawn } from "bun";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 
 const OPENCODE_MODEL = "opencode/big-pickle";
 const TEST_TIMEOUT = 90_000;
+const execAsync = promisify(exec);
+
+const runAgentSmoke = process.env.RUN_AGENT_SMOKE === "true";
+
+let hasOpencode = false;
+try {
+  await execAsync("which opencode");
+  hasOpencode = true;
+} catch {
+  hasOpencode = false;
+}
+
+const shouldRun = runAgentSmoke && hasOpencode;
 
 interface TestContext {
   testDir: string;
@@ -66,7 +81,7 @@ async function runOpencode(
   return { stdout, stderr, exitCode };
 }
 
-describe("bash-wrapper agent smoke tests", () => {
+describe.skipIf(!shouldRun)("bash-wrapper agent smoke tests", () => {
   it(
     "wraps bash commands with configured template",
     async () => {

@@ -39,6 +39,8 @@ The script outputs JSON with these fields:
 2. **Analyze output** for layer hierarchy, text labels, fonts used
 3. **Use element_sizes** to understand layout dimensions (sorted by area, largest first)
 
+Extracted assets can be placed in `tmp/` in current workspace for easy access (should be gitignore'd).
+
 ## Requirements
 
 - Python 3.10+

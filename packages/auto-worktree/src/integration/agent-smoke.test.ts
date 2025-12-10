@@ -14,7 +14,8 @@ import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
-// Skip if opencode is not available
+const runAgentSmoke = process.env.RUN_AGENT_SMOKE === "true";
+
 let hasOpencode = false;
 try {
   await execAsync("which opencode");
@@ -23,7 +24,9 @@ try {
   hasOpencode = false;
 }
 
-describe.skipIf(!hasOpencode)("auto-worktree agent smoke", () => {
+const shouldRun = runAgentSmoke && hasOpencode;
+
+describe.skipIf(!shouldRun)("auto-worktree agent smoke", () => {
   let tmpDir: string;
 
   beforeAll(async () => {

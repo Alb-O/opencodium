@@ -23,6 +23,7 @@
     { "path": "./packages/auto-worktree" },
     { "path": "./packages/bash-wrapper" },
     { "path": "./packages/dyn-sym" },
-    { "path": "./packages/git-narration" }
+    { "path": "./packages/git-narration" },
+    { "path": "./packages/skills" }
   ]
 }

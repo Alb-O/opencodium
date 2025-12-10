@@ -12,6 +12,8 @@ A collection of OpenCode plugins and skills. Plugins provide core functionality 
 
 [**dyn-sym**](packages/dyn-sym/README.md) creates a `.sym` directory at the worktree root containing symlinks to external directories. OpenCode's ripgrep-based file discovery follows these symlinks, making external paths visible to the agent without copying files.
 
+[**skills**](packages/skills/README.md) discovers Anthropic-style `SKILL.md` files from config, home, and project directories, then exposes each as a tool that silently injects the skill content into the session.
+
 **shared** provides `loadConfig()`, which searches `.opencode/{filename}` in the project root then falls back to `~/.config/opencode/{filename}`. Other plugins use this for consistent configuration loading.
 
 ## Skills

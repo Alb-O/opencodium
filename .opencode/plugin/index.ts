@@ -5,4 +5,4 @@
  * OpenCode automatically loads all named exports matching the Plugin type.
  */
 
-export * from "../../src/plugins";
+//export * from "../../src/plugins";

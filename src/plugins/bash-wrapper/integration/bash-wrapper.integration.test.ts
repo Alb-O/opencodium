@@ -1,91 +1,68 @@
+/**
+ * Component integration tests for bash-wrapper plugin.
+ * Tests the plugin hook and template selection with real file system.
+ */
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { spawn } from "bun";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-const OPENCODE_MODEL = "opencode/big-pickle";
-const TEST_TIMEOUT = 10_000; // 10 seconds for LLM responses
+import { BashWrapperPlugin, type BashWrapperConfig } from "../index";
+import { applyTemplate } from "../template";
+import { evaluateCondition } from "../condition";
 
 interface TestContext {
   testDir: string;
   configDir: string;
 }
 
-interface BashWrapperConfig {
-  template?: string;
-  templates?: Array<{
-    template: string;
-    when?: { file?: string; command?: string };
-  }>;
-}
-
-async function setupTestDir(
-  config: BashWrapperConfig,
-  options?: { createFlakeNix?: boolean }
-): Promise<TestContext> {
-  const testDir = await fs.mkdtemp(path.join(os.tmpdir(), "oc-bash-wrapper-test-"));
+async function setupTestDir(): Promise<TestContext> {
+  const testDir = await fs.mkdtemp(path.join(os.tmpdir(), "bash-wrapper-int-"));
   const configDir = path.join(testDir, ".opencode");
   await fs.mkdir(configDir, { recursive: true });
-
-  // Create plugin directory with re-export
-  const pluginDir = path.join(configDir, "plugin");
-  await fs.mkdir(pluginDir, { recursive: true });
-
-  const projectRoot = path.resolve(import.meta.dir, "../../../../");
-  await fs.writeFile(
-    path.join(pluginDir, "index.ts"),
-    `export * from "${projectRoot}/src/plugins";`
-  );
-
-  // Create bash-wrapper config
-  await fs.writeFile(
-    path.join(configDir, "bash-wrapper.json"),
-    JSON.stringify(config)
-  );
-
-  // Optionally create flake.nix
-  if (options?.createFlakeNix) {
-    await fs.writeFile(
-      path.join(testDir, "flake.nix"),
-      `{ outputs = { self }: { }; }`
-    );
-  }
-
+  
   return { testDir, configDir };
 }
 
-async function cleanupTestDir(ctx: TestContext) {
-  if (ctx.testDir) {
-    await fs.rm(ctx.testDir, { recursive: true, force: true });
-  }
+async function cleanup(ctx: TestContext) {
+  await fs.rm(ctx.testDir, { recursive: true, force: true });
 }
 
-async function runOpencode(cwd: string, prompt: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  const proc = spawn({
-    cmd: [
-      "opencode",
-      "run",
-      "--model",
-      OPENCODE_MODEL,
-      "--format",
-      "json",
-      prompt,
-    ],
-    cwd,
-    env: {
-      ...process.env,
-      OPENCODE_PERMISSION: JSON.stringify({ "*": "allow" }),
-    },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+async function writeConfig(ctx: TestContext, config: BashWrapperConfig) {
+  await fs.writeFile(
+    path.join(ctx.configDir, "bash-wrapper.json"),
+    JSON.stringify(config)
+  );
+}
 
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
-  const exitCode = await proc.exited;
+/**
+ * Mock plugin input matching OpenCode plugin interface.
+ */
+function mockPluginInput(testDir: string) {
+  return {
+    directory: testDir,
+    worktree: testDir,
+  };
+}
 
-  return { stdout, stderr, exitCode };
+/**
+ * Simulate calling the tool.execute.before hook.
+ */
+async function callBeforeHook(
+  plugin: Awaited<ReturnType<typeof BashWrapperPlugin>>,
+  command: string
+): Promise<string> {
+  const hook = plugin["tool.execute.before"];
+  if (!hook) {
+    return command; // No wrapping
+  }
+  
+  const details = { tool: "bash", sessionID: "test", callID: "test-1" };
+  const state = { args: { command } };
+  
+  await hook(details, state);
+  
+  return state.args.command;
 }
 
 describe("bash-wrapper integration", () => {
@@ -93,150 +70,293 @@ describe("bash-wrapper integration", () => {
     let ctx: TestContext;
 
     beforeEach(async () => {
-      ctx = await setupTestDir({
-        template: 'echo "WRAPPED:" && ${command}',
-      });
+      ctx = await setupTestDir();
     });
 
     afterEach(async () => {
-      await cleanupTestDir(ctx);
+      await cleanup(ctx);
     });
 
-    it(
-      "wraps bash commands with configured template",
-      async () => {
-        const { stdout, exitCode } = await runOpencode(
-          ctx.testDir,
-          'Run this exact bash command: echo "hello"'
-        );
+    it("wraps command with simple template", async () => {
+      await writeConfig(ctx, {
+        template: 'echo "WRAPPED:" && ${command}',
+      });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const result = await callBeforeHook(plugin, "ls -la");
+      
+      expect(result).toBe('echo "WRAPPED:" && ls -la');
+    });
 
-        expect(stdout).toContain("WRAPPED:");
-        expect(stdout).toContain("hello");
-        expect(exitCode).toBe(0);
-      },
-      TEST_TIMEOUT
-    );
+    it("returns empty hooks when no config", async () => {
+      // No config file
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      
+      expect(plugin).toEqual({});
+    });
+
+    it("returns empty hooks when template is passthrough", async () => {
+      await writeConfig(ctx, {
+        template: "${command}",
+      });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      
+      expect(plugin).toEqual({});
+    });
+
+    it("handles quoted placeholder", async () => {
+      await writeConfig(ctx, {
+        template: 'nix-shell --run "${command:quoted}"',
+      });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const result = await callBeforeHook(plugin, 'echo "hello"');
+      
+      expect(result).toBe('nix-shell --run "echo \\"hello\\""');
+    });
+
+    it("handles single-quoted placeholder", async () => {
+      await writeConfig(ctx, {
+        template: "ssh host '${command:single}'",
+      });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const result = await callBeforeHook(plugin, "echo it's working");
+      
+      expect(result).toBe("ssh host 'echo it'\\''s working'");
+    });
+
+    it("ignores non-bash tools", async () => {
+      await writeConfig(ctx, {
+        template: 'echo "WRAPPED:" && ${command}',
+      });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const hook = plugin["tool.execute.before"]!;
+      
+      const details = { tool: "write", sessionID: "test", callID: "test-1" };
+      const state = { args: { command: "ignored" } };
+      
+      await hook(details, state);
+      
+      // Should not be modified
+      expect(state.args.command).toBe("ignored");
+    });
+
+    it("handles missing command in args", async () => {
+      await writeConfig(ctx, {
+        template: 'echo "WRAPPED:" && ${command}',
+      });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const hook = plugin["tool.execute.before"]!;
+      
+      const details = { tool: "bash", sessionID: "test", callID: "test-1" };
+      const state = { args: { description: "some task" } };
+      
+      // Should not throw
+      await hook(details, state);
+      
+      expect(state.args).toEqual({ description: "some task" });
+    });
   });
 
-  describe("conditional template with fallback", () => {
-    describe("when condition matches", () => {
-      let ctx: TestContext;
+  describe("conditional templates", () => {
+    let ctx: TestContext;
 
-      beforeEach(async () => {
-        ctx = await setupTestDir(
+    beforeEach(async () => {
+      ctx = await setupTestDir();
+    });
+
+    afterEach(async () => {
+      await cleanup(ctx);
+    });
+
+    it("uses first matching template when file exists", async () => {
+      // Create the file that triggers the condition
+      await fs.writeFile(path.join(ctx.testDir, "flake.nix"), "{}");
+      
+      await writeConfig(ctx, {
+        templates: [
           {
-            templates: [
-              {
-                template: 'echo "HAS_FLAKE:" && ${command}',
-                when: { file: "flake.nix" },
-              },
-              {
-                template: 'echo "NO_FLAKE:" && ${command}',
-              },
-            ],
+            template: 'echo "HAS_FLAKE:" && ${command}',
+            when: { file: "flake.nix" },
           },
-          { createFlakeNix: true }
-        );
+          {
+            template: 'echo "FALLBACK:" && ${command}',
+          },
+        ],
       });
-
-      afterEach(async () => {
-        await cleanupTestDir(ctx);
-      });
-
-      it(
-        "uses the first matching template",
-        async () => {
-          const { stdout, exitCode } = await runOpencode(
-            ctx.testDir,
-            'Run this exact bash command: echo "test"'
-          );
-
-          expect(stdout).toContain("HAS_FLAKE:");
-          expect(stdout).not.toContain("NO_FLAKE:");
-          expect(exitCode).toBe(0);
-        },
-        TEST_TIMEOUT
-      );
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const result = await callBeforeHook(plugin, "echo test");
+      
+      expect(result).toBe('echo "HAS_FLAKE:" && echo test');
     });
 
-    describe("when condition does not match", () => {
-      let ctx: TestContext;
-
-      beforeEach(async () => {
-        ctx = await setupTestDir({
-          templates: [
-            {
-              template: 'echo "HAS_FLAKE:" && ${command}',
-              when: { file: "flake.nix" },
-            },
-            {
-              template: 'echo "FALLBACK:" && ${command}',
-            },
-          ],
-        });
-        // Note: NOT creating flake.nix
+    it("falls back when file condition not met", async () => {
+      // No flake.nix file
+      await writeConfig(ctx, {
+        templates: [
+          {
+            template: 'echo "HAS_FLAKE:" && ${command}',
+            when: { file: "flake.nix" },
+          },
+          {
+            template: 'echo "FALLBACK:" && ${command}',
+          },
+        ],
       });
-
-      afterEach(async () => {
-        await cleanupTestDir(ctx);
-      });
-
-      it(
-        "falls back to the next template",
-        async () => {
-          const { stdout, exitCode } = await runOpencode(
-            ctx.testDir,
-            'Run this exact bash command: echo "test"'
-          );
-
-          expect(stdout).toContain("FALLBACK:");
-          expect(stdout).not.toContain("HAS_FLAKE:");
-          expect(exitCode).toBe(0);
-        },
-        TEST_TIMEOUT
-      );
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const result = await callBeforeHook(plugin, "echo test");
+      
+      expect(result).toBe('echo "FALLBACK:" && echo test');
     });
 
-    describe("with command condition", () => {
-      let ctx: TestContext;
-
-      beforeEach(async () => {
-        ctx = await setupTestDir({
-          templates: [
-            {
-              template: 'echo "HAS_NONEXISTENT:" && ${command}',
-              when: { command: "this-command-does-not-exist-12345" },
-            },
-            {
-              template: 'echo "HAS_LS:" && ${command}',
-              when: { command: "ls" },
-            },
-            {
-              template: 'echo "FALLBACK:" && ${command}',
-            },
-          ],
-        });
+    it("uses first matching template when command exists", async () => {
+      await writeConfig(ctx, {
+        templates: [
+          {
+            template: 'echo "HAS_NONEXISTENT:" && ${command}',
+            when: { command: "this-command-does-not-exist-12345" },
+          },
+          {
+            template: 'echo "HAS_LS:" && ${command}',
+            when: { command: "ls" },
+          },
+          {
+            template: 'echo "FALLBACK:" && ${command}',
+          },
+        ],
       });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const result = await callBeforeHook(plugin, "echo test");
+      
+      expect(result).toBe('echo "HAS_LS:" && echo test');
+    });
 
-      afterEach(async () => {
-        await cleanupTestDir(ctx);
+    it("handles combined file and command conditions", async () => {
+      await fs.writeFile(path.join(ctx.testDir, "Dockerfile"), "FROM node");
+      
+      await writeConfig(ctx, {
+        templates: [
+          {
+            template: 'echo "DOCKER+FLAKE:" && ${command}',
+            when: { file: "Dockerfile", command: "this-does-not-exist" },
+          },
+          {
+            template: 'echo "DOCKER_ONLY:" && ${command}',
+            when: { file: "Dockerfile" },
+          },
+          {
+            template: 'echo "FALLBACK:" && ${command}',
+          },
+        ],
       });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const result = await callBeforeHook(plugin, "echo test");
+      
+      expect(result).toBe('echo "DOCKER_ONLY:" && echo test');
+    });
 
-      it(
-        "skips template when command not available",
-        async () => {
-          const { stdout, exitCode } = await runOpencode(
-            ctx.testDir,
-            'Run this exact bash command: echo "test"'
-          );
+    it("returns empty when no templates match and no fallback", async () => {
+      await writeConfig(ctx, {
+        templates: [
+          {
+            template: 'echo "HAS_FLAKE:" && ${command}',
+            when: { file: "flake.nix" },
+          },
+        ],
+      });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      
+      // No matching template, no fallback -> no hooks
+      expect(plugin).toEqual({});
+    });
 
-          expect(stdout).toContain("HAS_LS:");
-          expect(stdout).not.toContain("HAS_NONEXISTENT:");
-          expect(stdout).not.toContain("FALLBACK:");
-          expect(exitCode).toBe(0);
-        },
-        TEST_TIMEOUT
+    it("unconditional template always matches as fallback", async () => {
+      await writeConfig(ctx, {
+        templates: [
+          {
+            template: 'echo "CONDITIONAL:" && ${command}',
+            when: { file: "nonexistent.txt" },
+          },
+          {
+            template: 'echo "UNCONDITIONAL:" && ${command}',
+            // No 'when' -> always matches
+          },
+        ],
+      });
+      
+      const plugin = await BashWrapperPlugin(mockPluginInput(ctx.testDir));
+      const result = await callBeforeHook(plugin, "echo test");
+      
+      expect(result).toBe('echo "UNCONDITIONAL:" && echo test');
+    });
+  });
+
+  describe("upward file search", () => {
+    let ctx: TestContext;
+
+    beforeEach(async () => {
+      ctx = await setupTestDir();
+    });
+
+    afterEach(async () => {
+      await cleanup(ctx);
+    });
+
+    it("finds file in parent directory", async () => {
+      // Create file in testDir
+      await fs.writeFile(path.join(ctx.testDir, "marker.txt"), "found");
+      
+      // Create nested subdirectory
+      const subDir = path.join(ctx.testDir, "a", "b", "c");
+      await fs.mkdir(subDir, { recursive: true });
+      
+      // Check from subdirectory
+      const result = await evaluateCondition({ file: "marker.txt" }, subDir);
+      expect(result).toBe(true);
+    });
+
+    it("does not find file above project root", async () => {
+      // File doesn't exist anywhere
+      const result = await evaluateCondition({ file: "nonexistent-file.xyz" }, ctx.testDir);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("template escaping", () => {
+    it("escapes special chars for double quotes", () => {
+      const result = applyTemplate(
+        'bash -c "${command:quoted}"',
+        'echo "$HOME" && grep "test"'
       );
+      
+      expect(result).toBe('bash -c "echo \\"\\$HOME\\" && grep \\"test\\""');
+    });
+
+    it("escapes single quotes correctly", () => {
+      const result = applyTemplate(
+        "ssh host '${command:single}'",
+        "echo 'hello' && echo 'world'"
+      );
+      
+      expect(result).toBe("ssh host 'echo '\\''hello'\\'' && echo '\\''world'\\'''");
+    });
+
+    it("handles mixed placeholders", () => {
+      const result = applyTemplate(
+        '${command} or "${command:quoted}"',
+        'echo "test"'
+      );
+      
+      expect(result).toBe('echo "test" or "echo \\"test\\""');
     });
   });
 });

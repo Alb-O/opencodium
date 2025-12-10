@@ -1,9 +1,10 @@
 {
   "name": "oc-plugins",
   "scripts": {
-    "test": "bun test ./src --timeout 120000",
+    "test": "bun test ./src --timeout 120000 --ignore-pattern='**/agent-smoke.test.ts'",
     "test:unit": "bun test ./src/plugins/*/*.test.ts ./src/lib/*.test.ts",
-    "test:integration": "bun test ./src/plugins/*/integration/*.test.ts --timeout 120000",
+    "test:integration": "bun test ./src/plugins/*/integration/*.integration.test.ts --timeout 120000",
+    "test:agent": "bun test ./src/plugins/*/integration/agent-smoke.test.ts --timeout 120000",
     "postinstall": "bun2nix -o nix/bun.nix"
   },
   "type": "module",
@@ -16,7 +17,7 @@
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.0",
-    "simple-git": "^3.30.0",
+    "simple-git": "^3.30",
     "xdg-basedir": "^5.1"
   }
 }

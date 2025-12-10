@@ -1,4 +1,5 @@
 import { simpleGit, type SimpleGit, type SimpleGitOptions } from "simple-git";
+import path from "path";
 import type { GitNarrationConfig } from "./config";
 
 export type CommitResult = {
@@ -91,10 +92,20 @@ export async function isGitRepo(cwd: string): Promise<boolean> {
 
 /**
  * Get the git repository root for a path, or null if not in a repo.
+ * Walks up to find an existing directory if the given path doesn't exist.
  */
 export async function getGitRoot(cwd: string): Promise<string | null> {
+  // Walk up to find an existing directory
+  let dir = cwd;
+  const { existsSync } = await import("fs");
+  while (!existsSync(dir)) {
+    const parent = path.dirname(dir);
+    if (parent === dir) return null; // reached root
+    dir = parent;
+  }
+
   try {
-    const root = await git(cwd).revparse(["--show-toplevel"]);
+    const root = await git(dir).revparse(["--show-toplevel"]);
     return root.trim() || null;
   } catch {
     return null;

@@ -1,4 +1,5 @@
 import { simpleGit, type SimpleGit, type SimpleGitOptions } from "simple-git";
+import type { GitNarrationConfig } from "./config";
 
 export type CommitResult = {
   committed: boolean;
@@ -23,13 +24,19 @@ export async function commitFile(
   filePath: string,
   message: string,
   cwd: string,
+  config: GitNarrationConfig = {},
 ): Promise<CommitResult> {
   try {
     const repo = git(cwd);
     
     await repo.add(filePath);
     const diff = await repo.diff(["--cached", "--no-ext-diff", filePath]);
-    await repo.commit(normalizeMessage(message), [filePath]);
+    
+    const finalMessage = config.lowercaseMessages !== false 
+      ? normalizeMessage(message)
+      : message;
+    
+    await repo.commit(finalMessage, [filePath]);
 
     return { committed: true, diff };
   } catch (err) {

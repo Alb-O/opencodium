@@ -54,27 +54,35 @@ describe("git helpers", () => {
       expect(log.stdout).toContain("add test file");
     });
 
-    test("lowercases plain English, preserves code symbols", async () => {
-      // Plain English gets lowercased
+    test("lowercases messages by default", async () => {
       await writeFile(path.join(tempDir, "a.txt"), "a");
       await commitFile("a.txt", "Implement feature", tempDir);
-      
-      // camelCase preserved
+
+      const log = await execAsync("git log --oneline", { cwd: tempDir });
+      expect(log.stdout).toContain("implement feature");
+    });
+
+    test("preserves case when lowercaseMessages is false", async () => {
+      await writeFile(path.join(tempDir, "a.txt"), "a");
+      await commitFile("a.txt", "Implement feature", tempDir, { lowercaseMessages: false });
+
+      const log = await execAsync("git log --oneline", { cwd: tempDir });
+      expect(log.stdout).toContain("Implement feature");
+    });
+
+    test("preserves code symbols regardless of config", async () => {
       await writeFile(path.join(tempDir, "b.txt"), "b");
       await commitFile("b.txt", "parseConfig returns new type", tempDir);
       
-      // SCREAMING_CASE preserved
       await writeFile(path.join(tempDir, "c.txt"), "c");
       await commitFile("c.txt", "API_KEY now required", tempDir);
 
       const log = await execAsync("git log --oneline", { cwd: tempDir });
-      expect(log.stdout).toContain("implement feature");
       expect(log.stdout).toContain("parseConfig returns new type");
       expect(log.stdout).toContain("API_KEY now required");
     });
 
     test("returns error info when commit fails", async () => {
-      // Try to commit a file that doesn't exist
       const result = await commitFile("nonexistent.txt", "Should fail", tempDir);
       
       expect(result.committed).toBe(false);

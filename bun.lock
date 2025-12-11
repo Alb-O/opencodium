@@ -30,7 +30,7 @@
       "name": "@opencodium/bash-wrapper",
       "version": "0.1.1",
       "dependencies": {
-        "@opencodium/shared": "^0.1",
+        "@opencodium/shared": "workspace:*",
       },
       "devDependencies": {
         "@opencode-ai/plugin": "^1.0",

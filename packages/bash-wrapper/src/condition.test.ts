@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { evaluateCondition, findFileUpward } from "./condition";
+import { evaluateCondition } from "./condition";
+import { findFileUpward } from "@opencodium/shared";
 
 describe("evaluateCondition", () => {
   let testDir: string;

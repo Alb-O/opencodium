@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import os from "node:os";
+import { findFileUpward } from "@opencodium/shared";
 
 /**
  * Condition types for template selection.
@@ -10,31 +10,6 @@ export interface Condition {
   file?: string;
   /** Check if command is available in PATH */
   command?: string;
-}
-
-/**
- * Search for a file starting from baseDir and walking up to root.
- * Returns the directory containing the file, or null if not found.
- */
-async function findFileUpward(fileName: string, baseDir: string): Promise<string | null> {
-  let current = path.resolve(baseDir);
-  const root = path.parse(current).root;
-  const home = os.homedir();
-
-  while (current !== root && current !== home) {
-    const filePath = path.join(current, fileName);
-    try {
-      await fs.access(filePath);
-      return current;
-    } catch {
-      // Continue searching upward
-    }
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-
-  return null;
 }
 
 /**
@@ -101,9 +76,3 @@ export async function evaluateCondition(
 
   return true;
 }
-
-/**
- * Find a file searching upward from baseDir.
- * Exported for use when the template needs the file's directory.
- */
-export { findFileUpward };

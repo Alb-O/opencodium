@@ -1,31 +1,28 @@
 # @opencodium/nix-develop
 
-An OpenCode plugin that automatically wraps bash commands in `nix develop` when a `flake.nix` is present in the working directory.
+An OpenCode plugin that automatically activates nix flakes when `.nix` files are written or edited.
 
-## How it works
+## Features
 
-When enabled, this plugin intercepts bash tool calls and:
+- **Auto-activation**: When the agent writes or edits any `.nix` file, the plugin finds the nearest `flake.nix` and runs `nix develop` to activate/cache the devShell
+- **Parent directory search**: Finds `flake.nix` up the directory tree, so editing `nix/modules/dev.nix` activates the root flake
 
-1. Checks if `flake.nix` exists in the command's working directory
-2. If so, wraps the command with `nix develop -c bash -c "..."`
-3. Excludes certain commands (like `git`, `nix`, `ls`) that don't need the nix environment
+## Installation
 
-This means the agent can simply run commands normally, and they'll automatically execute within the nix develop shell environment.
+Add to your `.opencode/plugin/index.ts`:
+
+```typescript
+export { default } from "@opencodium/nix-develop";
+```
 
 ## Configuration
 
-Add to your `.opencode/opencode.json`:
+Add to your `.opencode/nix-develop.json`:
 
 ```json
 {
-  "plugins": {
-    "@opencodium/nix-develop": {
-      "enabled": true,
-      "exclude": ["my-custom-command"],
-      "flakePath": ".",
-      "devShell": "default"
-    }
-  }
+  "enabled": true,
+  "devShell": "default"
 }
 ```
 
@@ -34,27 +31,48 @@ Add to your `.opencode/opencode.json`:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enabled` | boolean | `true` | Enable/disable the plugin |
-| `exclude` | string[] | See below | Commands to exclude from wrapping |
-| `flakePath` | string | `"."` | Path to flake (relative to workdir) |
-| `devShell` | string | `undefined` | Specific devShell to use (e.g., `"dev"`) |
+| `devShell` | string | `undefined` | Specific devShell to use (e.g., `"dev"`, `"ci"`) |
 
-### Default excluded commands
+## Command Wrapping
 
-These commands are not wrapped by default:
-- `nix`, `git`, `cd`, `ls`, `pwd`, `echo`, `cat`, `head`, `tail`, `which`, `env`, `export`, `source`, `.`
+For wrapping bash commands with `nix develop`, use `@opencodium/bash-wrapper` with this config in `.opencode/bash-wrapper.json`:
 
-## Example
-
-Without plugin:
-```bash
-# Agent has to remember to wrap every command
-nix develop -c cargo build
-nix develop -c cargo test
+```json
+{
+  "templates": [
+    {
+      "template": "nix develop -c bash -c \"${command:escape}\"",
+      "when": { "file": "flake.nix" },
+      "exclude": ["nix", "git", "ls", "cd", "pwd", "echo", "cat"]
+    }
+  ]
+}
 ```
 
-With plugin:
-```bash
-# Agent just runs commands naturally
-cargo build  # → automatically wrapped as: nix develop -c bash -c "cargo build"
-cargo test   # → automatically wrapped as: nix develop -c bash -c "cargo test"
+This separates concerns:
+- **nix-develop**: Handles flake activation on file changes
+- **bash-wrapper**: Handles command wrapping
+
+## How It Works
+
+1. Agent writes/edits a `.nix` file (e.g., `flake.nix`, `shell.nix`, `nix/modules/dev.nix`)
+2. Plugin detects the file change via `tool.execute.after` hook
+3. Searches up directory tree for nearest `flake.nix`
+4. Runs `nix develop --command true` to activate/build the devShell
+5. Appends activation status to tool output
+
+## Example Output
+
+```
+File written successfully.
+
+[Flake activated: /home/user/project]
+```
+
+Or on failure:
+
+```
+File written successfully.
+
+[Flake activation failed: error: flake 'path:/home/user/project' does not provide attribute...]
 ```

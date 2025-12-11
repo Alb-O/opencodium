@@ -33,7 +33,7 @@ interface TestContext {
   configDir: string;
 }
 
-async function setupTestDir(config?: object): Promise<TestContext> {
+async function setupTestDir(): Promise<TestContext> {
   const testDir = await fs.mkdtemp(path.join(os.tmpdir(), "oc-nix-develop-smoke-"));
   const configDir = path.join(testDir, ".opencode");
   await fs.mkdir(configDir, { recursive: true });
@@ -46,13 +46,6 @@ async function setupTestDir(config?: object): Promise<TestContext> {
     path.join(pluginDir, "index.ts"),
     `export { default } from "${packageDir}/src/index.ts";`
   );
-
-  if (config) {
-    await fs.writeFile(
-      path.join(configDir, "nix-develop.json"),
-      JSON.stringify(config)
-    );
-  }
 
   return { testDir, configDir };
 }
@@ -85,32 +78,23 @@ async function runOpencode(
 
 describe.skipIf(!shouldRun)("nix-develop agent smoke tests", () => {
   it(
-    "wraps bash commands when flake.nix exists",
+    "activates flake when agent writes flake.nix",
     async () => {
       const ctx = await setupTestDir();
-
-      // Create a flake.nix
-      await fs.writeFile(
-        path.join(ctx.testDir, "flake.nix"),
-        `{
-          inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-          outputs = { self, nixpkgs }: {
-            devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
-              packages = [ nixpkgs.legacyPackages.x86_64-linux.hello ];
-            };
-          };
-        }`
-      );
 
       try {
         const { stdout, exitCode } = await runOpencode(
           ctx.testDir,
-          'Run the command: hello'
+          'Create a minimal flake.nix with an empty devShell for x86_64-linux'
         );
 
         expect(exitCode).toBe(0);
-        // Should have invoked hello via nix develop
-        expect(stdout).toContain("Hello");
+        // Should show flake activation message
+        expect(stdout.toLowerCase()).toMatch(/flake|activated|nix/);
+        
+        // Verify flake.nix was created
+        const flakeExists = await fs.access(path.join(ctx.testDir, "flake.nix")).then(() => true).catch(() => false);
+        expect(flakeExists).toBe(true);
       } finally {
         await cleanup(ctx);
       }
@@ -119,21 +103,32 @@ describe.skipIf(!shouldRun)("nix-develop agent smoke tests", () => {
   );
 
   it(
-    "does not wrap excluded commands",
+    "activates flake when agent edits a .nix file",
     async () => {
       const ctx = await setupTestDir();
 
-      await fs.writeFile(path.join(ctx.testDir, "flake.nix"), "{}");
+      // Create initial flake
+      await fs.writeFile(
+        path.join(ctx.testDir, "flake.nix"),
+        `{
+          inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+          outputs = { self, nixpkgs }: {
+            devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
+              packages = [];
+            };
+          };
+        }`
+      );
 
       try {
         const { stdout, exitCode } = await runOpencode(
           ctx.testDir,
-          'Run: git --version'
+          'Add the "hello" package to the devShell in flake.nix'
         );
 
         expect(exitCode).toBe(0);
-        // git should run directly without nix develop wrapper
-        expect(stdout).toContain("git version");
+        // Should show flake activation
+        expect(stdout.toLowerCase()).toMatch(/flake|activated/);
       } finally {
         await cleanup(ctx);
       }

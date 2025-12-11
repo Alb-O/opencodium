@@ -5,3 +5,4 @@
  */
 
 export { loadConfig, loadPluginConfig, getGlobalConfigDir } from "./config";
+export { findFileUpward } from "./fs";

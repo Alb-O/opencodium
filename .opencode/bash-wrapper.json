@@ -1,7 +1,7 @@
 {
   "templates": [
     {
-      "template": "nix develop --quiet -c bash -c \"${command:quoted}\"",
+      "template": "nix develop --quiet --option warn-dirty false -c bash -c \"${command:quoted}\"",
       "when": { "file": "flake.nix", "command": "nix" }
     },
     {

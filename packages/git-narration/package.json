@@ -23,9 +23,9 @@
   },
   "dependencies": {
     "@opencodium/shared": "workspace:*",
-    "diff": "^7",
+    "diff": "^8",
     "simple-git": "^3.30",
-    "zod": "^3"
+    "zod": "^4"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": "^1.0"
@@ -33,7 +33,7 @@
   "devDependencies": {
     "@opencode-ai/plugin": "^1.0",
     "@types/bun": "^1.3",
-    "@types/diff": "^7",
+    "@types/diff": "^8",
     "typescript": "^5"
   },
   "keywords": ["opencode", "plugin", "git", "commit", "narration"],

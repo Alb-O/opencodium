@@ -37,6 +37,7 @@
   "@opencodium/bash-wrapper" = copyPathToStore ./packages/bash-wrapper;
   "@opencodium/dyn-sym" = copyPathToStore ./packages/dyn-sym;
   "@opencodium/git-narration" = copyPathToStore ./packages/git-narration;
+  "@opencodium/nix-develop" = copyPathToStore ./packages/nix-develop;
   "@opencodium/shared" = copyPathToStore ./packages/shared;
   "@opencodium/skills" = copyPathToStore ./packages/skills;
   "@types/bun@1.3.4" = fetchurl {
@@ -46,6 +47,10 @@
   "@types/diff@7.0.2" = fetchurl {
     url = "https://registry.npmjs.org/@types/diff/-/diff-7.0.2.tgz";
     hash = "sha512-JSWRMozjFKsGlEjiiKajUjIJVKuKdE3oVy2DNtK+fUo8q82nhFZ2CPQwicAIkXrofahDXrWJ7mjelvZphMS98Q==";
+  };
+  "@types/node@22.19.2" = fetchurl {
+    url = "https://registry.npmjs.org/@types/node/-/node-22.19.2.tgz";
+    hash = "sha512-LPM2G3Syo1GLzXLGJAKdqoU35XvrWzGJ21/7sgZTUpbkBaOasTj8tjwn6w+hCkqaa1TfJ/w67rJSwYItlJ2mYw==";
   };
   "@types/node@25.0.0" = fetchurl {
     url = "https://registry.npmjs.org/@types/node/-/node-25.0.0.tgz";
@@ -114,6 +119,10 @@
   "typescript@5.9.3" = fetchurl {
     url = "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz";
     hash = "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==";
+  };
+  "undici-types@6.21.0" = fetchurl {
+    url = "https://registry.npmjs.org/undici-types/-/undici-types-6.21.0.tgz";
+    hash = "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==";
   };
   "undici-types@7.16.0" = fetchurl {
     url = "https://registry.npmjs.org/undici-types/-/undici-types-7.16.0.tgz";

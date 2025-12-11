@@ -1,0 +1,14 @@
+{
+  "name": "@opencodium/nix-develop",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@opencode-ai/plugin": "latest",
+    "@opencodium/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22"
+  }
+}

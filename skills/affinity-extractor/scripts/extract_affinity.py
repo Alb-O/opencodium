@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+# skill-part: Main extraction script; run directly on `.af` files
+
 """
 Extract design assets from Affinity Designer files.
 

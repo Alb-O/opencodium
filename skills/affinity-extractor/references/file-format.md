@@ -1,3 +1,7 @@
+---
+skill-part: "reference for manual extraction or debugging"
+---
+
 # Affinity Designer File Format Reference
 
 Affinity Designer v2/v3 files (`.afdesign`, `.af`) use an undocumented binary format.

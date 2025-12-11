@@ -6,7 +6,7 @@ license: MIT
 
 # Affinity Extractor
 
-Extract layer names, text content, fonts, and element bounding boxes from Affinity Designer v2/v3 files.
+Extract layer names, text content, fonts, and element bounding boxes from Affinity v3 files.
 
 ## Quick Start
 
@@ -68,15 +68,3 @@ The script auto-detects `binwalk` and falls back to `nix-shell` if unavailable.
 - Cannot render artboards (they exist only as vector data)
 - Bounding boxes are approximate
 - Some localization strings are filtered out
-
-## File Format Details
-
-For manual extraction or debugging, see [references/file-format.md](references/file-format.md).
-
-## Resources
-
-### scripts/
-- `extract_affinity.py` - Main extraction script; run directly on `.af` files
-
-### references/
-- `file-format.md` - Binary format documentation with tag reference table

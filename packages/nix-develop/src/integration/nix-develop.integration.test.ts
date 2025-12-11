@@ -61,14 +61,14 @@ async function callAfterHook(
     return {};
   }
   
-  const details = { tool, callID: "test-1" };
+  const details = { tool, callID: "test-1", sessionID: "test-session" };
   
   // Match actual metadata structures from opencode tools
   const metadata = tool === "edit" 
     ? { filediff: { file: filePath }, diff: "" }  // Edit tool structure
     : { filepath: filePath };  // Write tool structure
   
-  const result = { output: "File written", metadata };
+  const result = { title: "Test", output: "File written", metadata };
   
   await hook(details, result);
   

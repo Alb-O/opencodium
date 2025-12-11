@@ -1,6 +1,6 @@
 ---
 name: affinity-extractor
-description: Extract design assets from Affinity Designer files (.af, .afdesign). Use when users need to analyze Affinity files, extract layer names, text content, fonts, element sizes, or embedded images without opening Affinity Designer. Triggers on requests involving Affinity Designer file analysis, design asset extraction, or reverse-engineering Affinity file structure.
+description: Extract design assets from Affinity Designer files (.af, .afdesign). Use when users need to analyze or extract from Affinity files. Triggers on requests involving Affinity Designer file analysis, design asset extraction, or reverse-engineering .af files.
 license: MIT
 ---
 
@@ -35,18 +35,32 @@ The script outputs JSON with these fields:
 
 ## Workflow
 
-1. **Run extraction script** on the .af file to get structured JSON
-2. **Analyze output** for layer hierarchy, text labels, fonts used
-3. **Use element_sizes** to understand layout dimensions (sorted by area, largest first)
+1. Run extraction script on the `.af` file to get structured JSON
+2. Analyze output for layer hierarchy, text labels, fonts used
+3. Use `element_sizes` to understand layout dimensions (sorted by area, largest first)
 
 Extracted assets can be placed in `tmp/` in current workspace for easy access (should be gitignore'd).
+
+## Extracting Embedded Images
+
+To extract embedded images from Affinity files, use `binwalk` directly:
+
+`binwalk --extract document.af`
+
+This will create a `_document.af.extracted/` directory containing ZSTD compressed document data and any embedded images with their dimensions.
+
+Images are extracted to subdirectories named by their hex offset (e.g. `670D1/image.png`).
+
+### Viewing Extracted Images
+
+After extraction, use the `read` tool with the absolute file path to view images inline and analyze, returning a comprehensive description without needing external image viewers/OCR.
 
 ## Requirements
 
 - Python 3.10+
-- binwalk (via system install or `nix-shell -p binwalk`)
+- `binwalk` (via system install or `nix-shell -p binwalk`)
 
-The script auto-detects binwalk and falls back to nix-shell if unavailable.
+The script auto-detects `binwalk` and falls back to `nix-shell` if unavailable.
 
 ## Limitations
 
@@ -62,7 +76,7 @@ For manual extraction or debugging, see [references/file-format.md](references/f
 ## Resources
 
 ### scripts/
-- `extract_affinity.py` - Main extraction script; run directly on .af files
+- `extract_affinity.py` - Main extraction script; run directly on `.af` files
 
 ### references/
 - `file-format.md` - Binary format documentation with tag reference table

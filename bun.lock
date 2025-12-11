@@ -90,7 +90,7 @@
     },
     "packages/shared": {
       "name": "@opencodium/shared",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "xdg-basedir": "^5.1",
       },

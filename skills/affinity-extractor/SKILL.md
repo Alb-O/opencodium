@@ -12,11 +12,11 @@ Extract layer names, text content, fonts, and element bounding boxes from Affini
 
 Run the extraction script:
 
-`python scripts/extract_affinity.py document.af output.json`
+`python extract_affinity.py document.af output.json`
 
 For pre-extracted ZSTD data:
 
-`python scripts/extract_affinity.py --from-bin extracted.bin output.json`
+`python extract_affinity.py --from-bin extracted.bin output.json`
 
 ## Output Format
 

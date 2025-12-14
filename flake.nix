@@ -56,5 +56,75 @@
           '';
         };
       });
+
+      apps = eachSystem (system: 
+        let
+          buildBundlesScript = pkgsFor.${system}.writeShellApplication {
+            name = "build-bundles";
+            runtimeInputs = [ 
+              pkgsFor.${system}.bun 
+              pkgsFor.${system}.nodejs
+              bun2nix.packages.${system}.default
+            ];
+            text = ''
+              set -euo pipefail
+
+              cd "''${1:-.}"
+
+              echo "Building minified plugin bundles for opencodium..."
+
+              echo "Installing dependencies..."
+              bun install --frozen-lockfile
+
+              echo "Building shared package..."
+              cd packages/shared
+              bun run build
+              cd ../..
+
+              PLUGINS=(
+                "auto-worktree"
+                "bash-wrapper"
+                "dyn-sym"
+                "git-narration"
+                "nix-develop"
+              )
+
+              for plugin in "''${PLUGINS[@]}"; do
+                PLUGIN_DIR="packages/$plugin"
+                PLUGIN_SRC="$PLUGIN_DIR/src/index.ts"
+                PLUGIN_DIST="$PLUGIN_DIR/dist"
+                BUNDLE_OUT="$PLUGIN_DIST/''${plugin}.bundle.js"
+                
+                if [[ ! -f "$PLUGIN_SRC" ]]; then
+                  echo "Warning: $PLUGIN_SRC not found, skipping..."
+                  continue
+                fi
+                
+                echo "Building $plugin..."
+                mkdir -p "$PLUGIN_DIST"
+                
+                bun build "$PLUGIN_SRC" \
+                  --outfile "$BUNDLE_OUT" \
+                  --target node \
+                  --minify \
+                  --external @opencode-ai/plugin \
+                  --external bun
+                
+                echo "✓ Created $BUNDLE_OUT"
+              done
+
+              echo ""
+              echo "All plugin bundles created successfully!"
+              echo "Bundles are located in packages/*/dist/*.bundle.js"
+            '';
+          };
+        in
+        {
+          build-bundles = {
+            type = "app";
+            program = "${buildBundlesScript}/bin/build-bundles";
+          };
+        }
+      );
     };
 }

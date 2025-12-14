@@ -8,6 +8,9 @@
   ],
   "scripts": {
     "build": "bun run --filter '*' build",
+    "build:bundles": "bun run build:bundles:shared && bun run build:bundles:plugins",
+    "build:bundles:shared": "cd packages/shared && bun run build",
+    "build:bundles:plugins": "for plugin in auto-worktree bash-wrapper dyn-sym git-narration nix-develop; do echo \"Building $plugin...\" && bun build ./packages/$plugin/src/index.ts --outfile ./packages/$plugin/dist/$plugin.bundle.js --target node --minify --external @opencode-ai/plugin --external bun && echo \"✓ Created packages/$plugin/dist/$plugin.bundle.js\"; done",
     "test": "bun test packages/*/src/*.test.ts packages/*/src/integration/*.integration.test.ts --timeout 120000",
     "test:unit": "bun test packages/*/src/*.test.ts",
     "test:integration": "bun test packages/*/src/integration/*.integration.test.ts --timeout 120000",

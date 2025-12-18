@@ -52,6 +52,10 @@
           shellHook = ''
             if [ -t 0 ]; then
               bun install --frozen-lockfile
+              if [ ! -d packages/shared/dist ]; then
+                echo "Building shared package..."
+                (cd packages/shared && bun run build)
+              fi
             fi
           '';
         };
